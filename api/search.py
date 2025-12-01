@@ -2,12 +2,17 @@
 API Vercel pour recherche VIN via SerpAPI
 """
 
+from http.server import BaseHTTPRequestHandler
 import os
 import re
 import json
-from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
-import requests
+
+# Import requests with error handling
+try:
+    import requests
+except ImportError:
+    requests = None
 
 
 def search_vin_serpapi(vin: str, api_key: str) -> dict:
@@ -24,6 +29,10 @@ def search_vin_serpapi(vin: str, api_key: str) -> dict:
         "description": "",
         "statut": "Non trouvé"
     }
+
+    if requests is None:
+        result["statut"] = "Erreur: module requests non disponible"
+        return result
 
     # Validation VIN
     vin = vin.strip().upper()
@@ -49,7 +58,6 @@ def search_vin_serpapi(vin: str, api_key: str) -> dict:
         search_results = data.get("organic_results", [])
 
         if not search_results:
-            # Essai sans guillemets
             params["q"] = f'{vin} car sale Canada'
             response = requests.get("https://serpapi.com/search", params=params, timeout=30)
             data = response.json()
@@ -58,7 +66,6 @@ def search_vin_serpapi(vin: str, api_key: str) -> dict:
         if not search_results:
             return result
 
-        # Analyse des résultats
         best_result = None
         best_score = 0
 
@@ -77,7 +84,6 @@ def search_vin_serpapi(vin: str, api_key: str) -> dict:
             if any(site in url.lower() for site in auto_sites):
                 score += 10
 
-            # Extrait prix
             prix = extract_price(f"{title} {snippet}")
             if prix:
                 score += 5
@@ -124,7 +130,6 @@ def search_vin_serpapi(vin: str, api_key: str) -> dict:
 
 
 def extract_price(text: str) -> str:
-    """Extrait le prix du texte"""
     patterns = [
         r'\$\s*([\d,]+(?:\.\d{2})?)',
         r'([\d,]+(?:\.\d{2})?)\s*\$',
@@ -143,7 +148,6 @@ def extract_price(text: str) -> str:
 
 
 def extract_km(text: str) -> str:
-    """Extrait le kilométrage"""
     patterns = [
         r'([\d,\s]+)\s*km',
         r'([\d,\s]+)\s*kilomet',
@@ -161,7 +165,6 @@ def extract_km(text: str) -> str:
 
 
 def extract_year_make_model(text: str) -> tuple:
-    """Extrait année, marque et modèle"""
     year = ""
     make = ""
     model = ""
@@ -193,7 +196,6 @@ def extract_year_make_model(text: str) -> tuple:
 
 
 def get_dealer_name(url: str) -> str:
-    """Extrait le nom du concessionnaire"""
     domain = urlparse(url).netloc.replace('www.', '')
 
     dealer_map = {
@@ -211,12 +213,11 @@ def get_dealer_name(url: str) -> str:
         if key in domain:
             return value
 
-    return domain.split('.')[0].title()
+    return domain.split('.')[0].title() if domain else ""
 
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
-        """Handle GET request for single VIN search"""
         query = parse_qs(urlparse(self.path).query)
         vin = query.get('vin', [''])[0]
 
@@ -246,56 +247,7 @@ class handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(json.dumps(result).encode())
 
-    def do_POST(self):
-        """Handle POST request for batch VIN search"""
-        content_length = int(self.headers.get('Content-Length', 0))
-        body = self.rfile.read(content_length).decode()
-
-        api_key = os.environ.get('SERPAPI_KEY', '')
-
-        if not api_key:
-            self.send_response(500)
-            self.send_header('Content-Type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.end_headers()
-            self.wfile.write(json.dumps({"error": "SERPAPI_KEY not configured"}).encode())
-            return
-
-        try:
-            data = json.loads(body)
-            vins = data.get('vins', [])
-        except:
-            self.send_response(400)
-            self.send_header('Content-Type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.end_headers()
-            self.wfile.write(json.dumps({"error": "Invalid JSON"}).encode())
-            return
-
-        if not vins:
-            self.send_response(400)
-            self.send_header('Content-Type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.end_headers()
-            self.wfile.write(json.dumps({"error": "No VINs provided"}).encode())
-            return
-
-        # Limite à 50 VINs par requête pour éviter timeout
-        vins = vins[:50]
-        results = []
-
-        for vin in vins:
-            result = search_vin_serpapi(vin, api_key)
-            results.append(result)
-
-        self.send_response(200)
-        self.send_header('Content-Type', 'application/json')
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.end_headers()
-        self.wfile.write(json.dumps({"results": results}).encode())
-
     def do_OPTIONS(self):
-        """Handle CORS preflight"""
         self.send_response(200)
         self.send_header('Access-Control-Allow-Origin', '*')
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
