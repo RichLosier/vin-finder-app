@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal VIN Finder</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚗</text></svg>">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #eee;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 40px 0;
+        }
+
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, #00d4ff, #7c3aed);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            color: #888;
+            font-size: 1.1rem;
+        }
+
+        .search-section {
+            background: rgba(255,255,255,0.05);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+
+        .tab {
+            padding: 12px 25px;
+            border-radius: 10px;
+            border: none;
+            background: rgba(255,255,255,0.1);
+            color: #aaa;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            background: linear-gradient(90deg, #00d4ff, #7c3aed);
+            color: #fff;
+        }
+
+        .tab:hover:not(.active) {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .input-group input {
+            flex: 1;
+            padding: 15px 20px;
+            border-radius: 10px;
+            border: 2px solid rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.05);
+            color: #fff;
+            font-size: 1.1rem;
+            font-family: 'Monaco', 'Consolas', monospace;
+            letter-spacing: 1px;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #00d4ff;
+        }
+
+        .input-group input::placeholder {
+            color: #666;
+            letter-spacing: normal;
+        }
+
+        .btn {
+            padding: 15px 30px;
+            border-radius: 10px;
+            border: none;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            background: linear-gradient(90deg, #00d4ff, #7c3aed);
+            color: #fff;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: scale(1.05);
+            box-shadow: 0 5px 25px rgba(0,212,255,0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .file-upload {
+            border: 2px dashed rgba(255,255,255,0.2);
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 20px;
+        }
+
+        .file-upload:hover {
+            border-color: #00d4ff;
+            background: rgba(0,212,255,0.05);
+        }
+
+        .file-upload.dragover {
+            border-color: #7c3aed;
+            background: rgba(124,58,237,0.1);
+        }
+
+        .file-upload input {
+            display: none;
+        }
+
+        .file-upload-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+
+        .file-upload-text {
+            color: #888;
+        }
+
+        .file-upload-text strong {
+            color: #00d4ff;
+        }
+
+        .file-info {
+            background: rgba(0,212,255,0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+            display: none;
+        }
+
+        .file-info.visible {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .textarea-container {
+            margin-bottom: 20px;
+        }
+
+        .textarea-container textarea {
+            width: 100%;
+            min-height: 150px;
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.05);
+            color: #fff;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 0.95rem;
+            resize: vertical;
+        }
+
+        .textarea-container textarea:focus {
+            outline: none;
+            border-color: #00d4ff;
+        }
+
+        .textarea-container textarea::placeholder {
+            color: #666;
+        }
+
+        .textarea-hint {
+            color: #666;
+            font-size: 0.85rem;
+            margin-top: 8px;
+        }
+
+        .progress-section {
+            display: none;
+            margin-bottom: 30px;
+        }
+
+        .progress-section.visible {
+            display: block;
+        }
+
+        .progress-bar-container {
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            height: 25px;
+            overflow: hidden;
+            margin-bottom: 15px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #00d4ff, #7c3aed);
+            border-radius: 10px;
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+
+        .progress-text {
+            text-align: center;
+            color: #888;
+        }
+
+        .progress-text .current-vin {
+            font-family: monospace;
+            color: #00d4ff;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin: 30px 0;
+            flex-wrap: wrap;
+        }
+
+        .stat-card {
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 25px 40px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: transform 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+        }
+
+        .stat-card.success .stat-number { color: #10b981; }
+        .stat-card.total .stat-number { color: #7c3aed; }
+        .stat-card.rate .stat-number { color: #00d4ff; }
+
+        .stat-label {
+            color: #aaa;
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+
+        .results-section {
+            display: none;
+        }
+
+        .results-section.visible {
+            display: block;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 250px;
+            padding: 12px 20px;
+            border-radius: 10px;
+            border: 2px solid rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.05);
+            color: #fff;
+            font-size: 1rem;
+        }
+
+        .search-box:focus {
+            outline: none;
+            border-color: #00d4ff;
+        }
+
+        select {
+            padding: 12px 20px;
+            border-radius: 10px;
+            border: 2px solid rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.05);
+            color: #fff;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+
+        select option {
+            background: #1a1a2e;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            border-radius: 15px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: rgba(0,212,255,0.2);
+            padding: 15px 12px;
+            text-align: left;
+            font-weight: 600;
+            cursor: pointer;
+            position: sticky;
+            top: 0;
+            white-space: nowrap;
+        }
+
+        th:hover {
+            background: rgba(0,212,255,0.3);
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        tr {
+            transition: background 0.2s;
+        }
+
+        tr:hover {
+            background: rgba(255,255,255,0.05);
+        }
+
+        tr.found {
+            border-left: 3px solid #10b981;
+        }
+
+        tr.not-found {
+            border-left: 3px solid #ef4444;
+            opacity: 0.7;
+        }
+
+        .vin-cell {
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-weight: 500;
+            color: #00d4ff;
+        }
+
+        .prix-cell {
+            font-weight: bold;
+            color: #10b981;
+        }
+
+        .link-btn {
+            display: inline-block;
+            padding: 6px 12px;
+            background: linear-gradient(90deg, #7c3aed, #00d4ff);
+            color: #fff;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 0.8rem;
+            transition: transform 0.2s;
+        }
+
+        .link-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .desc-cell {
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        tr.found .status-cell {
+            color: #10b981;
+        }
+
+        tr.not-found .status-cell {
+            color: #ef4444;
+        }
+
+        .hidden { display: none !important; }
+
+        .export-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .alert {
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .alert.error {
+            background: rgba(239,68,68,0.2);
+            border: 1px solid #ef4444;
+            color: #ef4444;
+            display: block;
+        }
+
+        .alert.success {
+            background: rgba(16,185,129,0.2);
+            border: 1px solid #10b981;
+            color: #10b981;
+            display: block;
+        }
+
+        footer {
+            text-align: center;
+            padding: 30px;
+            color: #666;
+            font-size: 0.8rem;
+            margin-top: 30px;
+        }
+
+        @media (max-width: 768px) {
+            h1 { font-size: 2rem; }
+            .input-group { flex-direction: column; }
+            .controls { flex-direction: column; }
+            .stats { gap: 15px; }
+            .stat-card { padding: 15px 25px; }
+            .stat-number { font-size: 1.8rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚗 Universal VIN Finder</h1>
+            <p class="subtitle">Recherche de prix véhicules au Canada via SerpAPI</p>
+        </header>
+
+        <div class="search-section">
+            <div class="tabs">
+                <button class="tab active" data-tab="single">Recherche unique</button>
+                <button class="tab" data-tab="batch">Recherche multiple</button>
+                <button class="tab" data-tab="file">Import Excel</button>
+            </div>
+
+            <div id="alert" class="alert"></div>
+
+            <!-- Single VIN Search -->
+            <div id="single-tab" class="tab-content active">
+                <div class="input-group">
+                    <input type="text" id="singleVin" placeholder="Entrez un VIN (17 caractères)" maxlength="17">
+                    <button class="btn btn-primary" onclick="searchSingleVin()">🔍 Rechercher</button>
+                </div>
+            </div>
+
+            <!-- Batch VIN Search -->
+            <div id="batch-tab" class="tab-content">
+                <div class="textarea-container">
+                    <textarea id="batchVins" placeholder="Collez vos VINs ici (un par ligne)&#10;&#10;Exemple:&#10;1HGBH41JXMN109186&#10;2T1BURHE5JC034627&#10;5YJSA1E27MF123456"></textarea>
+                    <p class="textarea-hint">Maximum 50 VINs par recherche. Un VIN par ligne.</p>
+                </div>
+                <button class="btn btn-primary" onclick="searchBatchVins()">🔍 Rechercher tous les VINs</button>
+            </div>
+
+            <!-- File Upload -->
+            <div id="file-tab" class="tab-content">
+                <div class="file-upload" id="dropZone">
+                    <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
+                    <div class="file-upload-icon">📁</div>
+                    <p class="file-upload-text">
+                        <strong>Cliquez pour sélectionner</strong> ou glissez-déposez<br>
+                        votre fichier Excel (.xlsx, .xls) ou CSV
+                    </p>
+                </div>
+                <div class="file-info" id="fileInfo">
+                    <span id="fileName"></span>
+                    <button class="btn btn-secondary" onclick="clearFile()">✕ Retirer</button>
+                </div>
+                <button class="btn btn-primary" id="processFileBtn" onclick="processFile()" disabled>🔍 Traiter le fichier</button>
+            </div>
+        </div>
+
+        <!-- Progress Section -->
+        <div class="progress-section" id="progressSection">
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="progressBar" style="width: 0%">0%</div>
+            </div>
+            <p class="progress-text">
+                <span id="progressCount">0/0</span> VINs traités -
+                En cours: <span class="current-vin" id="currentVin">-</span>
+            </p>
+        </div>
+
+        <!-- Results Section -->
+        <div class="results-section" id="resultsSection">
+            <div class="stats">
+                <div class="stat-card success">
+                    <span class="stat-number" id="foundCount">0</span>
+                    <span class="stat-label">Trouvés</span>
+                </div>
+                <div class="stat-card total">
+                    <span class="stat-number" id="totalCount">0</span>
+                    <span class="stat-label">Total</span>
+                </div>
+                <div class="stat-card rate">
+                    <span class="stat-number" id="successRate">0%</span>
+                    <span class="stat-label">Taux de succès</span>
+                </div>
+            </div>
+
+            <div class="controls">
+                <input type="text" class="search-box" id="searchFilter" placeholder="🔍 Filtrer par VIN, marque, modèle...">
+                <select id="statusFilter">
+                    <option value="">Tous les statuts</option>
+                    <option value="found">Trouvés seulement</option>
+                    <option value="not-found">Non trouvés</option>
+                </select>
+                <button class="btn btn-primary" onclick="openAllLinks()">🔗 Ouvrir tous les liens</button>
+            </div>
+
+            <div class="table-container">
+                <table id="resultsTable">
+                    <thead>
+                        <tr>
+                            <th onclick="sortTable(0)">VIN</th>
+                            <th onclick="sortTable(1)">Prix</th>
+                            <th onclick="sortTable(2)">Concessionnaire</th>
+                            <th>Lien</th>
+                            <th onclick="sortTable(4)">Année</th>
+                            <th onclick="sortTable(5)">Marque</th>
+                            <th onclick="sortTable(6)">Modèle</th>
+                            <th onclick="sortTable(7)">KM</th>
+                            <th>Description</th>
+                            <th onclick="sortTable(9)">Statut</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultsBody"></tbody>
+                </table>
+            </div>
+
+            <div class="export-buttons">
+                <button class="btn btn-secondary" onclick="exportCSV()">📊 Exporter CSV</button>
+                <button class="btn btn-secondary" onclick="copyTable()">📋 Copier tableau</button>
+            </div>
+        </div>
+
+        <footer>
+            Universal VIN Finder - Powered by SerpAPI
+        </footer>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+        let results = [];
+        let fileVins = [];
+
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.tab + '-tab').classList.add('active');
+            });
+        });
+
+        // File upload handling
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            handleFile(e.dataTransfer.files[0]);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            handleFile(e.target.files[0]);
+        });
+
+        function handleFile(file) {
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+                    // Find VIN column
+                    const headers = json[0].map(h => String(h).toLowerCase());
+                    let vinCol = headers.findIndex(h => h.includes('vin') || h.includes('serie') || h.includes('série'));
+                    if (vinCol === -1) vinCol = 0;
+
+                    fileVins = json.slice(1)
+                        .map(row => String(row[vinCol] || '').trim().toUpperCase())
+                        .filter(v => v.length >= 10);
+
+                    document.getElementById('fileName').textContent = `${file.name} (${fileVins.length} VINs)`;
+                    document.getElementById('fileInfo').classList.add('visible');
+                    document.getElementById('processFileBtn').disabled = false;
+
+                    showAlert(`Fichier chargé: ${fileVins.length} VINs trouvés`, 'success');
+                } catch (err) {
+                    showAlert('Erreur lors de la lecture du fichier', 'error');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function clearFile() {
+            fileVins = [];
+            fileInput.value = '';
+            document.getElementById('fileInfo').classList.remove('visible');
+            document.getElementById('processFileBtn').disabled = true;
+        }
+
+        function showAlert(message, type) {
+            const alert = document.getElementById('alert');
+            alert.textContent = message;
+            alert.className = 'alert ' + type;
+            setTimeout(() => alert.className = 'alert', 5000);
+        }
+
+        // API calls
+        async function searchSingleVin() {
+            const vin = document.getElementById('singleVin').value.trim().toUpperCase();
+            if (!vin) {
+                showAlert('Veuillez entrer un VIN', 'error');
+                return;
+            }
+
+            showProgress(true);
+            updateProgress(0, 1, vin);
+
+            try {
+                const response = await fetch(`/api/search?vin=${encodeURIComponent(vin)}`);
+                const result = await response.json();
+
+                if (result.error) {
+                    showAlert(result.error, 'error');
+                    showProgress(false);
+                    return;
+                }
+
+                results = [result];
+                updateProgress(1, 1, vin);
+                displayResults();
+            } catch (err) {
+                showAlert('Erreur de connexion au serveur', 'error');
+            }
+
+            showProgress(false);
+        }
+
+        async function searchBatchVins() {
+            const text = document.getElementById('batchVins').value;
+            const vins = text.split('\n')
+                .map(v => v.trim().toUpperCase())
+                .filter(v => v.length >= 10)
+                .slice(0, 50);
+
+            if (vins.length === 0) {
+                showAlert('Aucun VIN valide trouvé', 'error');
+                return;
+            }
+
+            await processVins(vins);
+        }
+
+        async function processFile() {
+            if (fileVins.length === 0) {
+                showAlert('Aucun fichier chargé', 'error');
+                return;
+            }
+            await processVins(fileVins);
+        }
+
+        async function processVins(vins) {
+            results = [];
+            showProgress(true);
+
+            for (let i = 0; i < vins.length; i++) {
+                const vin = vins[i];
+                updateProgress(i, vins.length, vin);
+
+                try {
+                    const response = await fetch(`/api/search?vin=${encodeURIComponent(vin)}`);
+                    const result = await response.json();
+                    results.push(result.error ? { vin, statut: 'Erreur', description: result.error } : result);
+                } catch (err) {
+                    results.push({ vin, statut: 'Erreur', description: 'Erreur réseau' });
+                }
+
+                // Small delay to avoid rate limiting
+                await new Promise(r => setTimeout(r, 200));
+            }
+
+            updateProgress(vins.length, vins.length, 'Terminé');
+            showProgress(false);
+            displayResults();
+        }
+
+        function showProgress(show) {
+            document.getElementById('progressSection').classList.toggle('visible', show);
+        }
+
+        function updateProgress(current, total, vin) {
+            const percent = total > 0 ? Math.round((current / total) * 100) : 0;
+            document.getElementById('progressBar').style.width = percent + '%';
+            document.getElementById('progressBar').textContent = percent + '%';
+            document.getElementById('progressCount').textContent = `${current}/${total}`;
+            document.getElementById('currentVin').textContent = vin;
+        }
+
+        function displayResults() {
+            const found = results.filter(r => r.statut && r.statut.includes('Trouvé')).length;
+            const total = results.length;
+
+            document.getElementById('foundCount').textContent = found;
+            document.getElementById('totalCount').textContent = total;
+            document.getElementById('successRate').textContent = total > 0 ? Math.round(found / total * 100) + '%' : '0%';
+
+            const tbody = document.getElementById('resultsBody');
+            tbody.innerHTML = '';
+
+            results.forEach(r => {
+                const isFound = r.statut && r.statut.includes('Trouvé');
+                const row = document.createElement('tr');
+                row.className = isFound ? 'found' : 'not-found';
+                row.dataset.text = JSON.stringify(r).toLowerCase();
+
+                const linkHtml = r.url
+                    ? `<a href="${r.url}" target="_blank" class="link-btn">Voir annonce</a>`
+                    : '-';
+
+                row.innerHTML = `
+                    <td class="vin-cell">${r.vin || '-'}</td>
+                    <td class="prix-cell">${r.prix || '-'}</td>
+                    <td>${r.concessionnaire || '-'}</td>
+                    <td>${linkHtml}</td>
+                    <td>${r.annee || '-'}</td>
+                    <td>${r.marque || '-'}</td>
+                    <td>${r.modele || '-'}</td>
+                    <td>${r.km || '-'}</td>
+                    <td class="desc-cell" title="${r.description || ''}">${(r.description || '-').substring(0, 40)}</td>
+                    <td class="status-cell">${r.statut || '-'}</td>
+                `;
+
+                tbody.appendChild(row);
+            });
+
+            document.getElementById('resultsSection').classList.add('visible');
+        }
+
+        // Filtering
+        document.getElementById('searchFilter').addEventListener('input', filterResults);
+        document.getElementById('statusFilter').addEventListener('change', filterResults);
+
+        function filterResults() {
+            const search = document.getElementById('searchFilter').value.toLowerCase();
+            const status = document.getElementById('statusFilter').value;
+
+            document.querySelectorAll('#resultsBody tr').forEach(row => {
+                const text = row.dataset.text;
+                const isFound = row.classList.contains('found');
+
+                const matchSearch = !search || text.includes(search);
+                const matchStatus = !status ||
+                    (status === 'found' && isFound) ||
+                    (status === 'not-found' && !isFound);
+
+                row.classList.toggle('hidden', !(matchSearch && matchStatus));
+            });
+        }
+
+        // Sorting
+        let sortDir = {};
+        function sortTable(col) {
+            const tbody = document.getElementById('resultsBody');
+            const rows = Array.from(tbody.rows);
+
+            sortDir[col] = !sortDir[col];
+
+            rows.sort((a, b) => {
+                let aVal = a.cells[col].textContent.trim();
+                let bVal = b.cells[col].textContent.trim();
+
+                const aNum = parseFloat(aVal.replace(/[^0-9.-]/g, ''));
+                const bNum = parseFloat(bVal.replace(/[^0-9.-]/g, ''));
+
+                if (!isNaN(aNum) && !isNaN(bNum)) {
+                    return sortDir[col] ? aNum - bNum : bNum - aNum;
+                }
+
+                return sortDir[col] ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+            });
+
+            rows.forEach(row => tbody.appendChild(row));
+        }
+
+        function openAllLinks() {
+            const links = document.querySelectorAll('#resultsBody tr:not(.hidden) .link-btn');
+            if (links.length === 0) {
+                showAlert('Aucun lien à ouvrir', 'error');
+                return;
+            }
+            if (links.length > 10 && !confirm(`Ouvrir ${links.length} onglets?`)) return;
+
+            links.forEach((link, i) => {
+                setTimeout(() => window.open(link.href, '_blank'), i * 300);
+            });
+        }
+
+        function exportCSV() {
+            if (results.length === 0) return;
+
+            const headers = ['VIN', 'Prix', 'Concessionnaire', 'URL', 'Année', 'Marque', 'Modèle', 'KM', 'Description', 'Statut'];
+            const rows = results.map(r => [
+                r.vin, r.prix, r.concessionnaire, r.url, r.annee, r.marque, r.modele, r.km, r.description, r.statut
+            ]);
+
+            let csv = headers.join(',') + '\n';
+            rows.forEach(row => {
+                csv += row.map(cell => `"${(cell || '').replace(/"/g, '""')}"`).join(',') + '\n';
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `resultats_vins_${new Date().toISOString().slice(0, 10)}.csv`;
+            link.click();
+        }
+
+        function copyTable() {
+            const table = document.getElementById('resultsTable');
+            const rows = table.querySelectorAll('tr:not(.hidden)');
+            let text = '';
+
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('th, td');
+                text += Array.from(cells).map(c => c.textContent.trim()).join('\t') + '\n';
+            });
+
+            navigator.clipboard.writeText(text).then(() => {
+                showAlert('Tableau copié!', 'success');
+            });
+        }
+    </script>
+</body>
+</html>
